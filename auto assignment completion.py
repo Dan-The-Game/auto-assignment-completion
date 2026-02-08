@@ -14,7 +14,7 @@ TEACHER_NAME = "Ms. Smith"
 COURSE_NAME = "English"
 
 # --- CONFIGURATION ---
-CANVAS_URL = "https://mccsc.instructure.com"
+CANVAS_URL = "https://YOUR_SCHOOL.instructure.com"
 CANVAS_KEY = "YOUR_CANVAS_API_KEY_HERE"  # Replace with your actual Canvas API key
 GROQ_API_KEY = "YOUR_GROQ_API_KEY_HERE"  # Replace with your actual Groq API key
 COURSE_ID = 00000  # Replace with your actual course ID
