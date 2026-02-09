@@ -9,9 +9,10 @@ from groq import Groq
 from canvasapi import Canvas
 
 # --- USER INFO ---
+#old code v
+#TEACHER_NAME = "Ms. Smith"
+#COURSE_NAME = "English"
 STUDENT_NAME = "John Doe"
-TEACHER_NAME = "Ms. Smith"
-COURSE_NAME = "English"
 NUM_ASSIGNMENTS_TO_DO = 3 
 COURSE_TO_DO = "ALL"  # Set to a specific ID (e.g. 12345) or "ALL"
 
@@ -82,7 +83,6 @@ for i in range(NUM_ASSIGNMENTS_TO_DO):
 
         essay_content = finalize_essay_formatting(completion.choices[0].message.content)
         tokens = nltk.word_tokenize(essay_content)
-        header = f"{STUDENT_NAME}\n{TEACHER_NAME}\n{COURSE_NAME}\n{most_urgent.name}\n{time.strftime('%B %d, %Y')}\n\n\n"
 
         webbrowser.open("https://docs.new")
         time.sleep(10)
@@ -97,7 +97,6 @@ for i in range(NUM_ASSIGNMENTS_TO_DO):
         keyboard.press_and_release('enter')
         time.sleep(2.0)
 
-        keyboard.write(header)
         start_time = time.time()
         
         for idx, token in enumerate(tokens):
