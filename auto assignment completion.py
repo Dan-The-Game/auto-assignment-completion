@@ -9,9 +9,6 @@ from groq import Groq
 from canvasapi import Canvas
 
 # --- USER INFO ---
-#old code v
-#TEACHER_NAME = "Ms. Smith"
-#COURSE_NAME = "English"
 STUDENT_NAME = "John Doe"
 NUM_ASSIGNMENTS_TO_DO = 3 
 COURSE_TO_DO = "ALL"  # Set to a specific ID (e.g. 12345) or "ALL"
@@ -49,18 +46,23 @@ for i in range(NUM_ASSIGNMENTS_TO_DO):
         
         all_unsubmitted = []
         
-        # Select Course(s)
         if COURSE_TO_DO == "ALL":
             courses = canvas.get_courses(enrollment_state='active')
         else:
             courses = [canvas.get_course(COURSE_TO_DO)]
 
+        # Dictionary to keep track of which course an assignment belongs to
+        assignment_to_course_name = {}
+
         for course in courses:
             try:
+                # We fetch the course name once to use it later
+                c_name = course.name
                 assignments = course.get_assignments()
                 for a in assignments:
                     if a.due_at and a.get_submission('self').workflow_state == 'unsubmitted' and a.id not in completed_ids:
                         all_unsubmitted.append(a)
+                        assignment_to_course_name[a.id] = c_name
             except:
                 continue
 
@@ -70,8 +72,9 @@ for i in range(NUM_ASSIGNMENTS_TO_DO):
 
         most_urgent = min(all_unsubmitted, key=lambda a: a.due_at)
         completed_ids.append(most_urgent.id)
+        current_course_name = assignment_to_course_name[most_urgent.id]
         
-        print(f"Working on: {most_urgent.name}")
+        print(f"Working on: {most_urgent.name} (Course: {current_course_name})")
         
         completion = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
@@ -87,6 +90,7 @@ for i in range(NUM_ASSIGNMENTS_TO_DO):
         webbrowser.open("https://docs.new")
         time.sleep(10)
 
+        # Rename
         keyboard.press_and_release('alt+/')
         time.sleep(1.2)
         keyboard.write("Rename")
@@ -97,8 +101,12 @@ for i in range(NUM_ASSIGNMENTS_TO_DO):
         keyboard.press_and_release('enter')
         time.sleep(2.0)
 
+        # --- TYPE CLASS NAME ---
+        keyboard.write(current_course_name + "\n\n")
+        time.sleep(1.0)
+
+        # --- TYPE ESSAY ---
         start_time = time.time()
-        
         for idx, token in enumerate(tokens):
             if keyboard.is_pressed('esc'):
                 print("Aborted.")
@@ -106,6 +114,7 @@ for i in range(NUM_ASSIGNMENTS_TO_DO):
 
             wave_mult = 1.0 + 0.2 * math.sin((time.time() - start_time) / 40.0)
             if token in ["''", "``"]: token = '"'
+            
             for ch in token:
                 keyboard.write(ch)
                 time.sleep(random.uniform(0.06, 0.11) * wave_mult)
