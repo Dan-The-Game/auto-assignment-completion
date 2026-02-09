@@ -12,18 +12,18 @@ from canvasapi import Canvas
 STUDENT_NAME = "John Doe"
 TEACHER_NAME = "Ms. Smith"
 COURSE_NAME = "English"
-NUM_ASSIGNMENT = 3  # Set how many assignments to complete in one run
+NUM_ASSIGNMENTS_TO_DO = 3 
+COURSE_TO_DO = "ALL"  # Set to a specific ID (e.g. 12345) or "ALL"
 
 # --- CONFIGURATION ---
 CANVAS_URL = "https://YOUR_SCHOOL.instructure.com"
 CANVAS_KEY = "YOUR_CANVAS_API_KEY_HERE"
 GROQ_API_KEY = "YOUR_GROQ_API_KEY_HERE"
-COURSE_ID = 00000
 
 # --- SETUP ---
 canvas = Canvas(CANVAS_URL, CANVAS_KEY)
 client = Groq(api_key=GROQ_API_KEY)
-completed_ids = []  # Prevents repeating assignments not yet submitted
+completed_ids = []
 
 # --- FUNCTIONS ---
 def clean_assignment_text(text):
@@ -45,32 +45,37 @@ def finalize_essay_formatting(text):
 for i in range(NUM_ASSIGNMENTS_TO_DO):
     try:
         print(f"\n[Task {i+1}/{NUM_ASSIGNMENTS_TO_DO}] Checking Canvas...")
-        course = canvas.get_course(COURSE_ID)
         
-        # Filter for unsubmitted work excluding current session progress
-        unsubmitted = [
-            a for a in course.get_assignments() 
-            if a.due_at and a.get_submission('self').workflow_state == 'unsubmitted'
-            and a.id not in completed_ids
-        ]
+        all_unsubmitted = []
+        
+        # Select Course(s)
+        if COURSE_TO_DO == "ALL":
+            courses = canvas.get_courses(enrollment_state='active')
+        else:
+            courses = [canvas.get_course(COURSE_TO_DO)]
 
-        if not unsubmitted:
+        for course in courses:
+            try:
+                assignments = course.get_assignments()
+                for a in assignments:
+                    if a.due_at and a.get_submission('self').workflow_state == 'unsubmitted' and a.id not in completed_ids:
+                        all_unsubmitted.append(a)
+            except:
+                continue
+
+        if not all_unsubmitted:
             print("No more work found!")
             break
 
-        most_urgent = min(unsubmitted, key=lambda a: a.due_at)
+        most_urgent = min(all_unsubmitted, key=lambda a: a.due_at)
         completed_ids.append(most_urgent.id)
         
         print(f"Working on: {most_urgent.name}")
         
-        # AI Generation
         completion = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[
-                {
-                    "role": "system", 
-                    "content": f"You are {STUDENT_NAME}. Write a natural student response. No header/title. One solid paragraph. Double quotes for dialogue."
-                },
+                {"role": "system", "content": f"You are {STUDENT_NAME}. Write a natural student response. No header/title. One solid paragraph. Double quotes for dialogue."},
                 {"role": "user", "content": f"Complete this: {clean_assignment_text(most_urgent.description)}"}
             ]
         )
@@ -79,11 +84,9 @@ for i in range(NUM_ASSIGNMENTS_TO_DO):
         tokens = nltk.word_tokenize(essay_content)
         header = f"{STUDENT_NAME}\n{TEACHER_NAME}\n{COURSE_NAME}\n{most_urgent.name}\n{time.strftime('%B %d, %Y')}\n\n\n"
 
-        # Automation
         webbrowser.open("https://docs.new")
         time.sleep(10)
 
-        # Rename Doc
         keyboard.press_and_release('alt+/')
         time.sleep(1.2)
         keyboard.write("Rename")
@@ -94,7 +97,6 @@ for i in range(NUM_ASSIGNMENTS_TO_DO):
         keyboard.press_and_release('enter')
         time.sleep(2.0)
 
-        # Type Content
         keyboard.write(header)
         start_time = time.time()
         
@@ -104,15 +106,11 @@ for i in range(NUM_ASSIGNMENTS_TO_DO):
                 exit()
 
             wave_mult = 1.0 + 0.2 * math.sin((time.time() - start_time) / 40.0)
-            
-            # Fix tokenized quotes
             if token in ["''", "``"]: token = '"'
-
             for ch in token:
                 keyboard.write(ch)
                 time.sleep(random.uniform(0.06, 0.11) * wave_mult)
 
-            # Space logic
             if idx < len(tokens) - 1:
                 if tokens[idx+1] not in [".", ",", "!", "?", ";", ":", '"', "n't", "'s"]:
                     keyboard.write(" ")
@@ -121,10 +119,10 @@ for i in range(NUM_ASSIGNMENTS_TO_DO):
                 time.sleep(random.uniform(0.7, 1.3))
 
         print(f"Done: {most_urgent.name}")
-        time.sleep(5) # Cooldown between tasks
+        time.sleep(5)
 
     except Exception as e:
-        print(f"Error on task {i+1}: {e}")
+        print(f"Error: {e}")
         break
 
 print("\nSession complete.")
