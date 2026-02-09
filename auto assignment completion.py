@@ -11,6 +11,7 @@ from canvasapi import Canvas
 # --- USER INFO ---
 STUDENT_NAME = "John Doe"
 NUM_ASSIGNMENTS_TO_DO = 3 
+COURSE_TO_DO = "ALL"  # Set to a specific ID (e.g. 12345) or "ALL"
 
 # --- CONFIGURATION ---
 CANVAS_URL = "https://YOUR_SCHOOL.instructure.com"
@@ -41,12 +42,17 @@ def finalize_essay_formatting(text):
 # --- MAIN LOOP ---
 for i in range(NUM_ASSIGNMENTS_TO_DO):
     try:
-        print(f"\n[Task {i+1}/{NUM_ASSIGNMENTS_TO_DO}] Searching Current Classes...")
+        print(f"\n[Task {i+1}/{NUM_ASSIGNMENTS_TO_DO}] Checking Canvas...")
         all_valid_unsubmitted = []
         assignment_to_course_name = {}
 
-        # Filter for CURRENT active student enrollments
-        courses = canvas.get_courses(enrollment_state='active', enrollment_type='student')
+        # --- COURSE SELECTION LOGIC ---
+        if COURSE_TO_DO == "ALL":
+            # Fetches all current student enrollments
+            courses = canvas.get_courses(enrollment_state='active', enrollment_type='student')
+        else:
+            # Targets the specific Course ID provided
+            courses = [canvas.get_course(COURSE_TO_DO)]
 
         for course in courses:
             try:
@@ -55,9 +61,9 @@ for i in range(NUM_ASSIGNMENTS_TO_DO):
                 for a in assignments:
                     # Filter: Allow only File Upload or Text Entry
                     valid_types = ['online_upload', 'online_text_entry']
-                    has_valid_type = any(t in a.submission_types for t in valid_types)
+                    has_valid_type = any(t in getattr(a, 'submission_types', []) for t in valid_types)
                     
-                    # NEW FILTER: Exclude Quizzes and Discussions
+                    # Filter: Exclude Quizzes and Discussions
                     is_quiz = hasattr(a, 'quiz_id')
                     is_discussion = hasattr(a, 'discussion_topic')
 
@@ -73,12 +79,14 @@ for i in range(NUM_ASSIGNMENTS_TO_DO):
             print("No matching essay assignments found!")
             break
 
+        # Selection based on due date
         most_urgent = min(all_valid_unsubmitted, key=lambda a: a.due_at)
         completed_ids.append(most_urgent.id)
         current_course_name = assignment_to_course_name[most_urgent.id]
         
         print(f"Working on: {most_urgent.name} ({current_course_name})")
         
+        # AI Generation
         completion = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[
@@ -90,6 +98,7 @@ for i in range(NUM_ASSIGNMENTS_TO_DO):
         essay_content = finalize_essay_formatting(completion.choices[0].message.content)
         tokens = nltk.word_tokenize(essay_content)
 
+        # Automation
         webbrowser.open("https://docs.new")
         time.sleep(10)
 
